@@ -1,6 +1,7 @@
 package com.hmdp.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpSession;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -89,22 +91,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             user = createUserWithPhone(phone);
         }
         //7、保存用户信息到session
-        // TODO 保存至Redis(hash存储，key用token，token还要返回前端)
-        // TODO 7.1、随机生成token，作为登录令牌
+        //保存至Redis(hash存储，key用token，token还要返回前端)
+        //7.1、随机生成token，作为登录令牌
         String token = UUID.randomUUID().toString(true);
-        // TODO 7.2、将User对象转为hashMap去存储
+        //7.2、将User对象转为hashMap去存储
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
-        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO);
-        // TODO 7.3、存储，要给token设置有效期
+        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(),
+                CopyOptions.create()
+                        .setIgnoreNullValue(true)
+                        .setFieldValueEditor((fieldname, fielfvalue) -> fielfvalue.toString()));
+        //7.3、存储，要给token设置有效期
         //String tokenKey = "login:token:" + token;
         String tokenKey = LOGIN_USER_KEY + token;
         stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
-        // TODO 7.4、设置token有效期
+        //7.4、设置token有效期
         //stringRedisTemplate.expire(tokenKey, 30, TimeUnit.MINUTES);
         stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.MINUTES);
         //session.setAttribute("user", user);
         //session.setAttribute("user", BeanUtil.copyProperties(user, UserDTO.class));
-        // TODO 8、返回token到前端
+        //8、返回token到前端
         return Result.ok(token);
     }
 
