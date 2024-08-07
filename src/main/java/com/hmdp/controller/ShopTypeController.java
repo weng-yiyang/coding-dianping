@@ -24,11 +24,18 @@ import java.util.List;
 public class ShopTypeController {
     @Resource
     private IShopTypeService typeService;
+//    这是一个私有成员变量，声明了typeService字段的类型为IShopTypeService。
+//    IShopTypeService是一个业务逻辑服务接口，提供与商铺类型相关的服务方法。
+
+//    @GetMapping("list")
+//    public Result queryTypeList() {
+//        List<ShopType> typeList = typeService
+//                .query().orderByAsc("sort").list();
+//        return Result.ok(typeList);
+//    }
 
     @GetMapping("list")
     public Result queryTypeList() {
-        List<ShopType> typeList = typeService
-                .query().orderByAsc("sort").list();
-        return Result.ok(typeList);
+        return typeService.queryList();
     }
 }

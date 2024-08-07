@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
+
 /**
  * <p>
  *  服务实现类
@@ -27,22 +29,25 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     private StringRedisTemplate stringRedisTemplate;
     @Override
     public Result queryById(Long id) {
-        // TODO 1、从redis中查询商铺缓存
-        String shopJSON = stringRedisTemplate.opsForValue().get("cache:shop:" + id);
-        // TODO 2、判断是否存在
+        String key = CACHE_SHOP_KEY + id;
+        // 1、从redis中查询商铺缓存
+        String shopJSON = stringRedisTemplate.opsForValue().get(key);
+        // 2、判断是否存在
         if (StrUtil.isNotBlank(shopJSON)) {
-            // TODO 3、存在，直接返回
+            // 3、存在，直接返回
             // 返回需要转成java对象返回
             Shop shop = JSONUtil.toBean(shopJSON, Shop.class);
-
+            // JSON字符串转换为Shop类的实例
+            return Result.ok(shop);
         }
-
-
-        // TODO 4、不存在，根据id查询数据库
-
-        // TODO 5、数据库中不存在，返回错误
-
-        // TODO 6、数据库中存在，将商铺数据写入redis，再返回商铺信息
-        return null;
+        // 4、不存在，根据id查询数据库
+        Shop shop = getById(id);
+        // 5、数据库中不存在，返回错误
+        if (shop == null) {
+            return Result.fail("店铺不存在！");
+        }
+        // 6、数据库中存在，将商铺数据写入redis，再返回商铺信息
+        stringRedisTemplate.opsForValue().set(key, JSONUtil.toJsonStr(shop));
+        return Result.ok(shop);
     }
 }
