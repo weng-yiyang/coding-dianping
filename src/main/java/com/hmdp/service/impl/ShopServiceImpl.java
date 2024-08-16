@@ -9,6 +9,7 @@ import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.utils.CacheClient;
 import com.hmdp.utils.RedisConstants;
 import com.hmdp.utils.RedisData;
 import jdk.nashorn.internal.scripts.JO;
@@ -38,6 +39,9 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
+    // 注入工具类
+    @Resource
+    private CacheClient cacheClient;
 
     @Override
     /*public Result queryById(Long id) {
@@ -75,12 +79,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     public Result queryById(Long id) {
         // 缓存穿透
         // Shop shop = queryWithPassThrough(id);
+        // Shop shop = cacheClient.queryWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, id2->getById(id2), CACHE_SHOP_TTL, TimeUnit.MINUTES);
+        /*Shop shop = cacheClient
+                .queryWithPassThrough(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);*/
+
 
         // 互斥锁解决缓存击穿
         // Shop shop = queryWithMutex(id);
 
         // 互斥锁解决缓存击穿
-        Shop shop = queryWithLogicalExpire(id);
+        // Shop shop = queryWithLogicalExpire(id);
+        Shop shop = cacheClient.queryWithLogicalExpire(CACHE_SHOP_KEY, id, Shop.class, this::getById, CACHE_SHOP_TTL, TimeUnit.MINUTES);
+
         if (shop == null) {
             return Result.fail("店铺不存在！");
         }
@@ -229,7 +239,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     // Boolean 类型可以返回 null，这表示方法调用可能未产生预期的结果。如果使用 boolean 类型，则无法返回 null，因为 boolean 是基本类型，它的值只能是 true 或 false。
     private boolean tryLock(String key) {
         Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", 10, TimeUnit.SECONDS);
-        // 不能直接返回flag，如果直接返回 flag（即 return flag;），并不会引起空指针异常，因为 flag 可以是 Boolean.TRUE、Boolean.FALSE 或 null，需要排除null的情况
+        // 不能直接返回flag，如果直接返回 flag（即 return flag;），虽然并不会引起空指针异常，因为 flag 可以是 Boolean.TRUE、Boolean.FALSE 或 null，但是需要排除null的情况
         return BooleanUtil.isTrue(flag);
     }
 
